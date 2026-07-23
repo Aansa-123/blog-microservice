@@ -10,7 +10,7 @@ import cors from "cors";
 dotenv.config();
 
 const app = express();
-
+//cors
 app.use(cors({
     origin: "http://localhost:5173",
     credentials: true
@@ -20,9 +20,9 @@ const port = process.env.PORT;
 
 // Middleware to parse JSON requests
 app.use(express.json());
-
+// routes
 app.use("/blog", blogRoutes);
-
+//start server
 const startServer = async () => {
   try {
     await connectToDB();
