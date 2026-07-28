@@ -7,6 +7,7 @@ import {
     startPaymentConsumer
 } from "./services/kafka/payment.consumer.js";
 import cors from "cors";
+//config fix
 dotenv.config();
 
 const app = express();
