@@ -44,16 +44,33 @@ jobs:
   # Build and Push Docker Image
   # =========================
   docker:
-    name: Build and Push Blog Docker Image
+    name: Build and Push Docker Image
     needs: ci
 
     if: github.event_name == 'push'
 
     runs-on: ubuntu-latest
 
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Generate Image Tag
+        id: tag
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
+            TAG="dev-${GITHUB_RUN_NUMBER}"
+          elif [[ "${GITHUB_REF_NAME}" == "staging" ]]; then
+            TAG="staging-${GITHUB_RUN_NUMBER}"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            TAG="main-${GITHUB_RUN_NUMBER}"
+          fi
+
+          echo "image_tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -64,43 +81,43 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/blog-service:${{ github.sha }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/blog-service:${{ github.ref_name }} \
-            .
+          -t ${{ secrets.DOCKERHUB_USERNAME }}/blog-service:${{ steps.tag.outputs.image_tag }} .
 
       - name: Push Docker Image
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/blog-service:${{ github.sha }}
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/blog-service:${{ github.ref_name }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/blog-service:${{ steps.tag.outputs.image_tag }}
 
+  gitops:
+    name: Update GitOps Repository
 
-  # =========================
-  # Deploy to Staging
-  # =========================
-  deploy-staging:
-    name: Deploy Blog Service to Staging
     needs: docker
 
-    if: github.ref == 'refs/heads/staging' && github.event_name == 'push'
+    if: github.event_name == 'push'
 
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to Staging
-        run: echo "Deploying Blog Service to STAGING"
 
+      - name: Checkout GitOps Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}
+          ref: ${{ github.ref_name }}
 
-  # =========================
-  # Deploy to Production
-  # =========================
-  deploy-production:
-    name: Deploy Blog Service to Production
-    needs: docker
+      - name: Update Deployment Image
+        run: |
+          sed -i "s|image: .*|image: aansa123/blog-service:${{ needs.docker.outputs.image_tag }}|" blog-api-k8s/blog-deployment.yaml
 
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Commit Changes
+        run: |
+          git config blog.name "github-actions"
+          git config blog.email "github-actions@github.com"
 
-    runs-on: ubuntu-latest
+          git add .
 
-    steps:
-      - name: Deploy to Production
-        run: echo "Deploying Blog Service to PRODUCTION"
+          git commit -m "Update Blog Service image to ${{ needs.docker.outputs.image_tag }}" || echo "No changes"
+
+      - name: Push Changes
+        run: |
+          git push
