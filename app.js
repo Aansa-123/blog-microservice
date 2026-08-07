@@ -3,9 +3,9 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { connectToDB } from "./database/db.js";
 import blogRoutes from "./routes/blog.routes.js";
-// import {
-//     startPaymentConsumer
-// } from "./services/kafka/payment.consumer.js";
+import {
+    startPaymentConsumer
+} from "./services/kafka/payment.consumer.js";
 import cors from "cors";
 //config fix
 dotenv.config();
@@ -29,11 +29,11 @@ const startServer = async () => {
     await connectToDB();
     console.log("Database connected successfully");
 
-    // await startPaymentConsumer();
+    await startPaymentConsumer();
 
-    //     console.log(
-    //         "Blog Kafka Consumer Started"
-    //     );
+        console.log(
+            "Blog Kafka Consumer Started"
+        );
 
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
