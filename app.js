@@ -7,10 +7,14 @@ import {
     startPaymentConsumer
 } from "./services/kafka/payment.consumer.js";
 import cors from "cors";
+import client from "prom-client";
 //config fix
 dotenv.config();
 
 const app = express();
+
+// Prometheus metrics collection
+client.collectDefaultMetrics();
 //cors
 app.use(cors({
     origin: "http://localhost:5173",
@@ -21,6 +25,14 @@ const port = process.env.PORT;
 
 // Middleware to parse JSON requests
 app.use(express.json());
+
+// Prometheus metrics endpoint
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", client.register.contentType);
+  res.end(await client.register.metrics());
+});
+
+
 // routes
 app.use("/blog", blogRoutes);
 //start server
